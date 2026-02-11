@@ -1,0 +1,7 @@
+{
+  "wake_word": "zgredek",
+  "author": "Lukasz",
+  "version": "1.0.0",
+  "trained_languages": ["pl"],
+  "model": "zgredek.tflite"
+}
