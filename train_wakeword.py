@@ -100,6 +100,8 @@ EXAMPLES:
                         help="Skip sample generation (use existing)")
     parser.add_argument("--skip_download", action="store_true",
                         help="Skip downloading datasets (use existing)")
+    parser.add_argument("--samples_dir", default=None,
+                        help="Use existing 16kHz WAV samples from this directory (skips TTS generation)")
     parser.add_argument("--cpu_only", action="store_true", default=True,
                         help="Force CPU training (default: True, GPU often has issues)")
     return parser.parse_args()
@@ -686,7 +688,31 @@ def main():
     # ===================
     # STEP 1: Generate samples
     # ===================
-    if not args.skip_generate:
+    if args.samples_dir:
+        # Use existing samples directory
+        samples_path = Path(args.samples_dir)
+        if not samples_path.exists():
+            print(f"❌ Samples directory not found: {args.samples_dir}")
+            sys.exit(1)
+        
+        wav_count = len(list(samples_path.glob("*.wav")))
+        if wav_count == 0:
+            print(f"❌ No WAV files found in: {args.samples_dir}")
+            sys.exit(1)
+        
+        print("━" * 60)
+        print("📂 STEP 1/6: Using existing samples")
+        print("━" * 60)
+        print(f"  ✓ Found {wav_count} WAV files in {args.samples_dir}")
+        
+        # Link or copy to expected location
+        config['samples_16k_dir'] = samples_path
+        
+        print("\n━" * 60)
+        print("⏭️  STEP 2/6: Skipping conversion (samples already 16kHz)")
+        print("━" * 60)
+        
+    elif not args.skip_generate:
         print("━" * 60)
         print("📢 STEP 1/6: Generating TTS samples")
         print("━" * 60)
