@@ -100,6 +100,8 @@ EXAMPLES:
                         help="Skip sample generation (use existing)")
     parser.add_argument("--skip_download", action="store_true",
                         help="Skip downloading datasets (use existing)")
+    parser.add_argument("--skip_volume_augment", action="store_true",
+                        help="Skip volume augmentation (quiet/loud variations)")
     parser.add_argument("--samples_dir", default=None,
                         help="Use existing 16kHz WAV samples from this directory (skips TTS generation)")
     parser.add_argument("--cpu_only", action="store_true", default=True,
@@ -189,6 +191,49 @@ def convert_to_wav(input_dir, output_dir):
     wav_count = len(list(Path(output_dir).glob("*.wav")))
     print(f"  ✓ Converted {wav_count} files")
     return wav_count
+
+
+def augment_volume(input_dir, output_dir=None):
+    """Create volume-augmented versions of samples (quiet and loud)"""
+    input_path = Path(input_dir)
+    if output_dir:
+        output_path = Path(output_dir)
+    else:
+        output_path = input_path
+    
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    wav_files = list(input_path.glob("*.wav"))
+    if not wav_files:
+        return 0
+    
+    print(f"  Creating volume variations for {len(wav_files)} files...")
+    
+    # Volume levels: quiet (-15dB, -10dB, -5dB) and loud (+3dB, +6dB)
+    volume_levels = [
+        ("-15dB", "_quiet15"),
+        ("-10dB", "_quiet10"),
+        ("-5dB", "_quiet5"),
+        ("+3dB", "_loud3"),
+        ("+6dB", "_loud6"),
+    ]
+    
+    created = 0
+    for wav_file in tqdm(wav_files, desc="  Volume augment"):
+        for vol, suffix in volume_levels:
+            out_file = output_path / f"{wav_file.stem}{suffix}.wav"
+            if not out_file.exists():
+                subprocess.run([
+                    "ffmpeg", "-i", str(wav_file),
+                    "-filter:a", f"volume={vol}",
+                    "-ar", "16000", "-ac", "1",
+                    str(out_file), "-y", "-loglevel", "error"
+                ], capture_output=True)
+                created += 1
+    
+    total = len(list(output_path.glob("*.wav")))
+    print(f"  ✓ Volume augmentation complete ({total} total files)")
+    return created
 
 
 # =============================================================================
@@ -701,9 +746,13 @@ def main():
         # Link or copy to expected location
         config['samples_16k_dir'] = samples_path
         
-        print("\n━" * 60)
-        print("⏭️  STEP 2/6: Skipping conversion (samples already 16kHz)")
-        print("━" * 60)
+        if not args.skip_volume_augment:
+            print("\n━" * 60)
+            print("🔊 STEP 2/6: Adding volume variations")
+            print("━" * 60)
+            augment_volume(str(config['samples_16k_dir']))
+        else:
+            print("\n⏭️  Skipping volume augmentation (--skip_volume_augment)")
         
     elif not args.skip_generate:
         print("━" * 60)
@@ -715,6 +764,11 @@ def main():
         print("🔊 STEP 2/6: Converting to WAV format")
         print("━" * 60)
         convert_to_wav(str(config['samples_dir']), str(config['samples_16k_dir']))
+        
+        # Add volume augmentation
+        if not args.skip_volume_augment:
+            print("\n  Adding volume variations (quiet/loud)...")
+            augment_volume(str(config['samples_16k_dir']))
     else:
         print("⏭️  Skipping sample generation (--skip_generate)")
     
