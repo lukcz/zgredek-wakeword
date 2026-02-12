@@ -220,6 +220,63 @@ python train_wakeword.py "Wake Word Two" --data_dir ./training1 --output_dir ./t
 | 0.8 | Few | Some | Quiet environments |
 | 0.9 | Rare | Many | High-precision needed |
 
+## Choosing Cutoff Based on Training Results
+
+After training completes, the script outputs metrics like:
+
+```
+INFO:absl:Cutoff 0.86: frr=0.0818; faph=0.000
+INFO:absl:Cutoff 0.85: frr=0.0818; faph=0.187
+INFO:absl:Cutoff 0.81: frr=0.0793; faph=0.562
+INFO:absl:Cutoff 0.75: frr=0.0691; faph=0.750
+INFO:absl:Cutoff 0.67: frr=0.0588; faph=0.937
+```
+
+### Understanding the Metrics
+
+| Metric | Full Name | Meaning |
+|--------|-----------|---------|
+| **frr** | False Rejection Rate | % of wake words NOT detected (lower = better) |
+| **faph** | False Accepts Per Hour | How often it triggers incorrectly (lower = better) |
+| **Cutoff** | Probability Threshold | The `probability_cutoff` value for ESPHome |
+
+### How to Choose
+
+1. **Find your acceptable faph**: 
+   - `0.0` = Never triggers incorrectly (but may miss wake words)
+   - `0.5-1.0` = Triggers falsely ~once per hour (reasonable)
+   - `2.0+` = May be annoying in quiet environments
+
+2. **Check the frr at that cutoff**:
+   - `< 5%` = Excellent (misses 1 in 20 wake words)
+   - `5-10%` = Good (misses 1 in 10-20)
+   - `> 10%` = May feel unresponsive
+
+3. **Balance based on your use case**:
+
+| Environment | Recommended faph | Typical Cutoff |
+|-------------|------------------|----------------|
+| Noisy (kitchen, living room) | 1.0-2.0 | 0.60-0.70 |
+| Quiet (bedroom, office) | 0.0-0.5 | 0.80-0.90 |
+| Mixed/General | 0.5-1.0 | 0.70-0.80 |
+
+### Example Decision
+
+From the training output above:
+- At cutoff **0.75**: frr=6.9%, faph=0.75 → **Balanced choice**
+- At cutoff **0.85**: frr=8.2%, faph=0.19 → **Fewer false triggers, slightly less responsive**
+- At cutoff **0.67**: frr=5.9%, faph=0.94 → **More responsive, ~1 false trigger/hour**
+
+**Recommendation**: Start with the cutoff where `faph < 1.0` and `frr < 10%`, then adjust based on real-world testing.
+
+### Quick Reference Table
+
+| Your Priority | Choose Cutoff Where |
+|---------------|---------------------|
+| Never miss wake word | faph ~1-2, lowest frr |
+| Never false trigger | faph = 0, accept higher frr |
+| Balanced | faph < 1.0, frr < 10% |
+
 ### Language-Specific Tips
 
 | Language | Recommended Variations | Notes |

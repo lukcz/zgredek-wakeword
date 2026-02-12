@@ -539,7 +539,35 @@ def run_training(config_path, cpu_only=True):
     subprocess.run(cmd, env=env, check=True)
 
 
-def create_manifest(wake_word, author, probability_cutoff, output_path):
+def run_conversion(config_path, cpu_only=True):
+    """Run model conversion if tflite wasn't generated during training"""
+    cmd = [
+        sys.executable, "-m", "microwakeword.model_train_eval",
+        f"--training_config={config_path}",
+        "--train", "0",  # Skip training, only convert
+        "--restore_checkpoint", "1",
+        "--test_tflite_streaming_quantized", "1",
+        "--use_weights", "best_weights",
+        "mixednet",
+        "--pointwise_filters", "64,64,64,64",
+        "--repeat_in_block", "1,1,1,1",
+        "--mixconv_kernel_sizes", "[5], [7,11], [9,15], [23]",
+        "--residual_connection", "0,0,0,0",
+        "--first_conv_filters", "32",
+        "--first_conv_kernel_size", "5",
+        "--stride", "3",
+    ]
+    
+    env = os.environ.copy()
+    if cpu_only:
+        env["CUDA_VISIBLE_DEVICES"] = "-1"
+    
+    print("\n  Converting model to TFLite format...")
+    
+    subprocess.run(cmd, env=env, check=True)
+
+
+def create_manifest(wake_word, author, probability_cutoff, output_path, tflite_filename=None):
     """Create the JSON manifest for ESPHome"""
     manifest = {
         "version": 2,
@@ -548,8 +576,26 @@ def create_manifest(wake_word, author, probability_cutoff, output_path):
         "micro": {
             "probability_cutoff": probability_cutoff,
             "sliding_window_size": 5
+        },
+        "suggested_cutoffs": {
+            "conservative": {
+                "probability_cutoff": min(0.90, probability_cutoff + 0.15),
+                "description": "Fewer false activations, may miss some wake words"
+            },
+            "balanced": {
+                "probability_cutoff": probability_cutoff,
+                "description": "Good balance between detection and false positives"
+            },
+            "sensitive": {
+                "probability_cutoff": max(0.50, probability_cutoff - 0.15),
+                "description": "Catches more wake words, may have more false activations"
+            }
         }
     }
+    
+    # Add model URL placeholder (user should update this after uploading)
+    if tflite_filename:
+        manifest["model"] = f"UPDATE_WITH_YOUR_GITHUB_URL/{tflite_filename}"
     
     with open(output_path, 'w') as f:
         json.dump(manifest, f, indent=2)
@@ -696,9 +742,14 @@ def main():
     tflite_dst = output_dir / f"{wake_word_slug}.tflite"
     manifest_dst = output_dir / f"{wake_word_slug}.json"
     
+    # If tflite wasn't generated during training, run conversion separately
+    if not tflite_src.exists():
+        print("  ⚠ TFLite not generated during training, running conversion...")
+        run_conversion(str(config['training_config_path']), cpu_only=args.cpu_only)
+    
     if tflite_src.exists():
         shutil.copy(tflite_src, tflite_dst)
-        create_manifest(args.wake_word, args.author, args.probability_cutoff, str(manifest_dst))
+        create_manifest(args.wake_word, args.author, args.probability_cutoff, str(manifest_dst), tflite_dst.name)
         
         model_size = tflite_dst.stat().st_size / 1024
         
@@ -713,22 +764,43 @@ def main():
 ║  📁 Files saved to: {str(output_dir)[:40]:<40} ║
 ╚══════════════════════════════════════════════════════════════╝
 
+📊 INTERPRETING TRAINING RESULTS:
+
+Look at the training output above for lines like:
+  INFO:absl:Cutoff 0.75: frr=0.0691; faph=0.750
+
+  • frr = False Rejection Rate (% of wake words missed)
+  • faph = False Accepts Per Hour (false triggers per hour)
+
+CHOOSING YOUR CUTOFF:
+┌──────────────────────────────────────────────────────────────┐
+│ Environment        │ Target faph │ Typical Cutoff │
+├────────────────────┼─────────────┼────────────────┤
+│ Noisy (kitchen)    │ 1.0-2.0     │ 0.60-0.70      │
+│ Quiet (bedroom)    │ 0.0-0.5     │ 0.80-0.90      │
+│ Mixed/General      │ 0.5-1.0     │ 0.70-0.80      │
+└──────────────────────────────────────────────────────────────┘
+
 🚀 NEXT STEPS:
 
 1. Upload both files to GitHub releases
 
-2. Add to ESPHome Voice PE config:
+2. Update the JSON manifest with your GitHub URL:
+   Edit {manifest_dst.name} and replace UPDATE_WITH_YOUR_GITHUB_URL
+   with your actual release URL
+
+3. Add to ESPHome Voice PE config:
 
    micro_wake_word:
      models:
-       - model: https://github.com/YOUR_USER/{wake_word_slug}/releases/download/v1.0.0/{wake_word_slug}.json
+       - model: https://github.com/YOUR_USER/YOUR_REPO/releases/download/v1.0.0/{manifest_dst.name}
          probability_cutoff: {args.probability_cutoff}
          sliding_window_size: 5
 
-3. Flash your device and test!
+4. Flash your device and test!
 
-   Tip: If too many false positives, increase probability_cutoff to 0.8
-        If not responding, decrease to 0.6
+   Tip: Adjust probability_cutoff based on the training metrics above.
+        Start with a balanced cutoff, then tune based on real-world use.
 
 🧦 Happy wake-wording!
 """)
