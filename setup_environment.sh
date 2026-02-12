@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# 🧦 Wake Word Trainer - Environment Setup Script
+# 🏠 HA Wake Word Trainer - Environment Setup Script
 # =============================================================================
 # 
 # This script sets up everything needed to train custom wake words.
@@ -144,7 +144,7 @@ echo -e "${GREEN}  ✓ micro-wake-word installed${NC}"
 echo ""
 echo -e "${YELLOW}[5/5] Downloading training script...${NC}"
 
-SCRIPT_URL="https://raw.githubusercontent.com/lukcz/zgredek-wakeword/main/train_wakeword.py"
+SCRIPT_URL="https://raw.githubusercontent.com/lukcz/ha-wakeword-trainer/main/train_wakeword.py"
 SCRIPT_PATH="$HOME/train_wakeword.py"
 
 wget -O "$SCRIPT_PATH" "$SCRIPT_URL"

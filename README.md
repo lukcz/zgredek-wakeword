@@ -1,8 +1,12 @@
-# 🧦 Wake Word Trainer
+# 🏠 HA Wake Word Trainer
 
-All-in-one training script for custom [microWakeWord](https://github.com/OHF-Voice/micro-wake-word) models compatible with Home Assistant Voice PE and ESPHome.
+All-in-one training script for custom [microWakeWord](https://github.com/OHF-Voice/micro-wake-word) models compatible with **Home Assistant Voice PE** and **ESPHome**.
 
-**Just run it and wait** — everything is automatic, including downloading all required datasets.
+Train your own wake word in any language — just run the script and wait!
+
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-blue?logo=homeassistant)](https://www.home-assistant.io/)
+[![ESPHome](https://img.shields.io/badge/ESPHome-Ready-green?logo=esphome)](https://esphome.io/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
@@ -28,7 +32,7 @@ The easiest way to set up everything:
 
 ```bash
 # Download and run the setup script
-wget https://raw.githubusercontent.com/lukcz/zgredek-wakeword/main/setup_environment.sh
+wget https://raw.githubusercontent.com/lukcz/ha-wakeword-trainer/main/setup_environment.sh
 chmod +x setup_environment.sh
 ./setup_environment.sh
 ```
@@ -75,7 +79,7 @@ cd ~/micro-wake-word && pip install -e .
 sed -i 's/\.numpy()//g' ~/micro-wake-word/microwakeword/train.py
 
 # 6. Download the trainer script
-wget -O ~/train_wakeword.py https://raw.githubusercontent.com/lukcz/zgredek-wakeword/main/train_wakeword.py
+wget -O ~/train_wakeword.py https://raw.githubusercontent.com/lukcz/ha-wakeword-trainer/main/train_wakeword.py
 ```
 
 ### Using requirements.txt
@@ -84,7 +88,7 @@ Alternatively, after creating your virtual environment:
 
 ```bash
 source ~/wakeword-env/bin/activate
-pip install -r https://raw.githubusercontent.com/lukcz/zgredek-wakeword/main/requirements.txt
+pip install -r https://raw.githubusercontent.com/lukcz/ha-wakeword-trainer/main/requirements.txt
 ```
 
 ### Windows Users (WSL2 Required)
@@ -386,7 +390,7 @@ esp32:
 
 micro_wake_word:
   models:
-    - model: https://github.com/lukcz/zgredek-wakeword/releases/download/v1.0.0/hej_zgredek.json
+    - model: https://github.com/lukcz/ha-wakeword-trainer/releases/download/v1.0.0/hej_zgredek.json
       probability_cutoff: 0.7
       sliding_window_size: 5
   on_wake_word_detected:
@@ -514,4 +518,6 @@ MIT License - Use freely for personal and commercial projects.
 
 ---
 
-Made with 🧦 by [Zgredek](https://github.com/lukcz)
+Made with ❤️ for the Home Assistant community
+
+Created by [lukcz](https://github.com/lukcz) with help from 🧦 Zgredek
