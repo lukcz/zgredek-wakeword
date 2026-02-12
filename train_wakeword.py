@@ -301,7 +301,51 @@ def download_fma(output_dir):
     print(f"    ✓ FMA ready ({len(list(fma_dir.glob('*.wav')))} files)")
 
 
-# AudioSet removed - no longer available on HuggingFace (404)
+def download_musan(output_dir):
+    """Download MUSAN (Music, Speech, Noise) dataset for augmentation"""
+    musan_dir = Path(output_dir)
+    if musan_dir.exists() and len(list(musan_dir.glob("*.wav"))) > 100:
+        print(f"    ✓ MUSAN noise (exists)")
+        return
+    
+    musan_dir.mkdir(parents=True, exist_ok=True)
+    
+    print(f"    ↓ MUSAN (Music, Speech, Noise)...")
+    
+    try:
+        # Try using huggingface_hub
+        try:
+            from huggingface_hub import snapshot_download
+            
+            cache_dir = musan_dir.parent / "musan_cache"
+            snapshot_download(
+                repo_id="FluidInference/musan",
+                repo_type="dataset",
+                local_dir=str(cache_dir),
+                local_dir_use_symlinks=False
+            )
+            
+            # Convert noise files to 16kHz WAV
+            print(f"    Converting to 16kHz...")
+            noise_files = list(cache_dir.rglob("*.wav"))[:1000]  # Limit to 1000 files
+            
+            for audio_file in tqdm(noise_files, desc="    Converting"):
+                wav_file = musan_dir / f"musan_{audio_file.stem}.wav"
+                subprocess.run([
+                    "ffmpeg", "-i", str(audio_file),
+                    "-ar", "16000", "-ac", "1", "-t", "30",  # Max 30 seconds
+                    str(wav_file), "-y", "-loglevel", "error"
+                ], capture_output=True)
+            
+            print(f"    ✓ MUSAN ready ({len(list(musan_dir.glob('*.wav')))} files)")
+            
+        except ImportError:
+            print(f"    ⚠ huggingface_hub not installed, skipping MUSAN")
+            print(f"    Install with: pip install huggingface_hub")
+            
+    except Exception as e:
+        print(f"    ⚠ MUSAN download failed: {e}")
+        print(f"    Skipping MUSAN (training will still work without it)")
 
 
 # =============================================================================
@@ -321,6 +365,8 @@ def generate_augmented_features(config):
     background_paths = []
     if config.get('fma_dir') and Path(config['fma_dir']).exists():
         background_paths.append(str(config['fma_dir']))
+    if config.get('musan_dir') and Path(config['musan_dir']).exists():
+        background_paths.append(str(config['musan_dir']))
     
     impulse_paths = []
     if config.get('rir_dir') and Path(config['rir_dir']).exists():
@@ -597,6 +643,7 @@ def main():
         'negative_datasets_dir': data_dir / "negative_datasets",
         'rir_dir': data_dir / "mit_rirs",
         'fma_dir': data_dir / "fma_16k",
+        'musan_dir': data_dir / "musan_16k",
         'model_dir': output_dir / "trained_model",
         'training_config_path': output_dir / "training_parameters.yaml",
     }
@@ -686,7 +733,7 @@ def main():
         print("\n  [Augmentation data]")
         download_mit_rirs(str(config['rir_dir']))
         download_fma(str(config['fma_dir']))
-        # AudioSet removed - no longer available on HuggingFace
+        download_musan(str(config['musan_dir']))
     else:
         print("⏭️  Skipping dataset downloads (--skip_download)")
     
