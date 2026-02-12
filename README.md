@@ -15,34 +15,99 @@ All-in-one training script for custom [microWakeWord](https://github.com/OHF-Voi
 
 ## Requirements
 
-### System
-- **WSL2 Ubuntu** (recommended) or native Linux
-- Python 3.10+
-- ~10GB free disk space
-- FFmpeg
+### System Requirements
+- **OS**: WSL2 Ubuntu 22.04+ (recommended) or native Linux
+- **Python**: 3.10 or higher
+- **RAM**: 8GB minimum, 16GB recommended
+- **Disk**: ~10GB free space (for datasets)
+- **CPU**: Multi-core recommended (training is CPU-intensive)
 
-### Installation
+### Quick Setup (Automatic)
+
+The easiest way to set up everything:
+
+```bash
+# Download and run the setup script
+wget https://raw.githubusercontent.com/lukcz/zgredek-wakeword/main/setup_environment.sh
+chmod +x setup_environment.sh
+./setup_environment.sh
+```
+
+This automatically:
+- Installs system dependencies (ffmpeg, python3, etc.)
+- Creates a Python virtual environment
+- Installs all required packages with correct versions
+- Clones and installs micro-wake-word
+- Downloads the training script
+- Patches known compatibility issues
+
+After setup, just run:
+```bash
+source ~/wakeword-env/bin/activate
+python ~/train_wakeword.py "Hey Jarvis" --lang en
+```
+
+### Manual Setup
+
+If you prefer to set up manually:
 
 ```bash
 # 1. Install system dependencies
-sudo apt update && sudo apt install ffmpeg -y
+sudo apt update && sudo apt install -y python3 python3-pip python3-venv ffmpeg git wget
 
-# 2. Create Python environment
+# 2. Create and activate virtual environment
 python3 -m venv ~/wakeword-env
 source ~/wakeword-env/bin/activate
 
-# 3. Install Python packages
-pip install edge-tts datasets==2.14.0 soundfile librosa pyyaml requests tqdm
-pip install 'numpy<2' 'pyarrow>=12,<15' tensorflow==2.16.1
+# 3. Install Python packages (ORDER MATTERS!)
+pip install --upgrade pip wheel setuptools
+pip install 'numpy>=1.24.0,<2.0'
+pip install 'pyarrow>=12.0.0,<15.0.0'
+pip install tensorflow==2.16.1
+pip install datasets==2.14.0
+pip install edge-tts soundfile librosa scipy pyyaml requests tqdm mmap-ninja webrtcvad
 
 # 4. Clone and install micro-wake-word
-git clone https://github.com/OHF-Voice/micro-wake-word.git
-cd micro-wake-word && pip install -e .
-cd ..
+git clone https://github.com/OHF-Voice/micro-wake-word.git ~/micro-wake-word
+cd ~/micro-wake-word && pip install -e .
 
-# 5. Download the trainer script
-wget https://raw.githubusercontent.com/lukcz/zgredek-wakeword/main/train_wakeword.py
+# 5. Apply compatibility patch
+sed -i 's/\.numpy()//g' ~/micro-wake-word/microwakeword/train.py
+
+# 6. Download the trainer script
+wget -O ~/train_wakeword.py https://raw.githubusercontent.com/lukcz/zgredek-wakeword/main/train_wakeword.py
 ```
+
+### Using requirements.txt
+
+Alternatively, after creating your virtual environment:
+
+```bash
+source ~/wakeword-env/bin/activate
+pip install -r https://raw.githubusercontent.com/lukcz/zgredek-wakeword/main/requirements.txt
+```
+
+### Windows Users (WSL2 Required)
+
+Native Windows is **not supported** due to TensorFlow limitations. Use WSL2:
+
+```powershell
+# In PowerShell (Admin)
+wsl --install -d Ubuntu-22.04
+```
+
+Then follow the Linux setup instructions inside WSL2.
+
+### GPU Support (Optional)
+
+GPU training often has compatibility issues with newer cards (RTX 40xx/50xx). 
+The script defaults to CPU training, which works reliably.
+
+If you want to try GPU:
+1. Install CUDA toolkit in WSL2
+2. Run with `--cpu_only=False`
+
+Note: CPU training takes 15-30 minutes, which is acceptable for most use cases.
 
 ## Quick Start
 
