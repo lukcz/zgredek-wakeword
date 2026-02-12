@@ -586,7 +586,6 @@ The script uses the **MixedNet** architecture optimized for wake word detection:
 | Generated samples | ~500MB | Positive wake word examples |
 | MIT RIRs | ~500MB | Room acoustics simulation |
 | FMA (music) | ~2GB | Background music augmentation |
-| AudioSet | ~2GB | Environmental sounds |
 | Negative datasets | ~1GB | Speech/noise that's NOT the wake word |
 
 All datasets are automatically downloaded on first run and cached for future use.

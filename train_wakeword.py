@@ -301,58 +301,7 @@ def download_fma(output_dir):
     print(f"    ✓ FMA ready ({len(list(fma_dir.glob('*.wav')))} files)")
 
 
-def download_audioset(output_dir):
-    """Download AudioSet background sounds"""
-    audioset_dir = Path(output_dir)
-    if audioset_dir.exists() and len(list(audioset_dir.glob("*.wav"))) > 100:
-        print(f"    ✓ AudioSet (exists)")
-        return
-    
-    audioset_raw = audioset_dir.parent / "audioset_raw"
-    audioset_raw.mkdir(parents=True, exist_ok=True)
-    audioset_dir.mkdir(parents=True, exist_ok=True)
-    
-    tar_path = audioset_raw / "bal_train09.tar"
-    
-    try:
-        import tarfile
-        
-        if not tar_path.exists() or tar_path.stat().st_size < 1000000:  # < 1MB = probably failed
-            if tar_path.exists():
-                tar_path.unlink()  # Remove corrupted file
-            print(f"    ↓ AudioSet (background sounds)...")
-            url = "https://huggingface.co/datasets/agkphysics/AudioSet/resolve/main/data/bal_train09.tar"
-            download_file(url, str(tar_path), "    AudioSet")
-        
-        # Verify file is valid tar
-        if not tarfile.is_tarfile(str(tar_path)):
-            print(f"    ⚠ AudioSet download corrupted, skipping (training will still work)")
-            if tar_path.exists():
-                tar_path.unlink()
-            return
-        
-        # Extract
-        print(f"    Extracting...")
-        with tarfile.open(tar_path, 'r') as tar:
-            tar.extractall(audioset_raw)
-        
-        # Convert to 16kHz
-        print(f"    Converting to 16kHz...")
-        flac_files = list((audioset_raw / "audio").glob("*.flac"))
-        
-        for flac_file in tqdm(flac_files, desc="    Converting"):
-            wav_file = audioset_dir / f"{flac_file.stem}.wav"
-            subprocess.run([
-                "ffmpeg", "-i", str(flac_file),
-                "-ar", "16000", "-ac", "1",
-                str(wav_file), "-y", "-loglevel", "error"
-            ], capture_output=True)
-        
-        print(f"    ✓ AudioSet ready ({len(list(audioset_dir.glob('*.wav')))} files)")
-    
-    except Exception as e:
-        print(f"    ⚠ AudioSet failed: {e}")
-        print(f"    Skipping AudioSet (training will still work without it)")
+# AudioSet removed - no longer available on HuggingFace (404)
 
 
 # =============================================================================
@@ -372,8 +321,6 @@ def generate_augmented_features(config):
     background_paths = []
     if config.get('fma_dir') and Path(config['fma_dir']).exists():
         background_paths.append(str(config['fma_dir']))
-    if config.get('audioset_dir') and Path(config['audioset_dir']).exists():
-        background_paths.append(str(config['audioset_dir']))
     
     impulse_paths = []
     if config.get('rir_dir') and Path(config['rir_dir']).exists():
@@ -650,7 +597,6 @@ def main():
         'negative_datasets_dir': data_dir / "negative_datasets",
         'rir_dir': data_dir / "mit_rirs",
         'fma_dir': data_dir / "fma_16k",
-        'audioset_dir': data_dir / "audioset_16k",
         'model_dir': output_dir / "trained_model",
         'training_config_path': output_dir / "training_parameters.yaml",
     }
@@ -740,7 +686,7 @@ def main():
         print("\n  [Augmentation data]")
         download_mit_rirs(str(config['rir_dir']))
         download_fma(str(config['fma_dir']))
-        download_audioset(str(config['audioset_dir']))
+        # AudioSet removed - no longer available on HuggingFace
     else:
         print("⏭️  Skipping dataset downloads (--skip_download)")
     
